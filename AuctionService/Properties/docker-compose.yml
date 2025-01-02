@@ -6,7 +6,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - /var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
   pgadmin:
     image: dpage/pgadmin4
@@ -26,9 +26,7 @@ services:
    ports:
      - 27017:27017
    volumes:
-     - /data/db
-  rabbitmq:
-   image: rabbitmq:3-management-alpine
-   ports:
-    - 5672:5672
-    - 15672:15672
+     - mongodata:/data/db
+volumes:
+  pgdata:
+  mongodata:
