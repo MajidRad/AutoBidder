@@ -1,23 +1,26 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Entities;
+using MongoDB.Driver;
 using SearchService.Models;
+using SearchService.Services;
 
 namespace SearchService.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 public class SearchController : ControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<List<Item>>> SearchItems(string? searchTerm =null)
+    private readonly SearchSvc _searchSvc;
+
+    public SearchController(SearchSvc searchSvc)
     {
-        var query = DB.Find<Item>();
-        query.Sort(x => x.Ascending(a => a.Make));
-        if (!string.IsNullOrEmpty(searchTerm))
-        {
-            query.Match(Search.Full, searchTerm).SortByTextScore();
-        }
-        var result = await query.ExecuteAsync();
+        _searchSvc = searchSvc;
+    }
+
+
+    [HttpGet]
+    public async Task<ActionResult<List<Item>>> SearchItems(string? searchTerm = null)
+    {
+        var result = await _searchSvc.SearchItemsAsync(searchTerm);
         return result;
     }
 }

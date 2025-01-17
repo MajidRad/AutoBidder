@@ -1,8 +1,11 @@
+using AuctionService.Consumers;
 using AuctionService.Data;
 using AuctionService.Data.DbInitializer;
 using AuctionService.RequestHelper;
+using AutoMapper;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,20 +16,38 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.RegisterMapsterConfiguration();
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddAutoMapper(typeof(AutomapperConfig));
 builder.Services.AddDbContext<AuctionDbContext>(opt =>
 {
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddMassTransit(x =>
 {
+    x.AddEntityFrameworkOutbox<AuctionDbContext>(o =>
+    {
+        o.QueryDelay = TimeSpan.FromSeconds(10);
+        o.UsePostgres();
+        o.UseBusOutbox();
+    });
+    x.AddConsumersFromNamespaceContaining<AuctionCreatedFaultConsumer>();
+    x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("auction", false));
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.ConfigureEndpoints(context);
     });
 });
 var app = builder.Build();
-
+var serviceProvider = app.Services;
+var mapperConfig = serviceProvider.GetRequiredService<AutoMapper.IConfigurationProvider>();
+try
+{
+    mapperConfig.AssertConfigurationIsValid();
+    Console.WriteLine("AutoMapper configuration is valid.");
+}
+catch (AutoMapperConfigurationException ex)
+{
+    Console.WriteLine($"AutoMapper configuration error: {ex.Message}");
+}
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
